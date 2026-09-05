@@ -1,6 +1,6 @@
 # Specs
 
-One markdown file per feature, named `specs/<feature-name>.md`, following [TEMPLATE.md](TEMPLATE.md).
+One markdown file per feature, named `docs/specs/<feature-name>.md`, following [TEMPLATE.md](TEMPLATE.md).
 
 Workflow:
 1. `/spec <feature-name>` — draft or update the spec.

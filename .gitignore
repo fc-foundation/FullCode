@@ -73,3 +73,6 @@ terraform.rc
 *.tfplan
 tfplan.binary
 plan.json
+
+# Downloaded tooling (e.g. conftest, fetched by scripts/Test-NamingConvention.ps1)
+.tools/

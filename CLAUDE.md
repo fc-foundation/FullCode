@@ -4,7 +4,7 @@ FullCode Network Foundation and Site.
 
 ## Spec-driven development
 
-Specs live in `specs/`, one markdown file per feature (see `specs/README.md` and `specs/TEMPLATE.md`).
+Specs live in `docs/specs/`, one markdown file per feature (see `docs/specs/README.md` and `docs/specs/TEMPLATE.md`).
 
 Workflow:
 - `/spec <feature-name>` — draft or update a spec.

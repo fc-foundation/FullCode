@@ -3,14 +3,14 @@ name: Terraform
 on:
   pull_request:
     paths:
-      - "terraform/**"
-      - "policy/**"
+      - "infra/terraform/**"
+      - "infra/policy/**"
       - ".github/workflows/terraform.yml"
   push:
     branches: [main]
     paths:
-      - "terraform/**"
-      - "policy/**"
+      - "infra/terraform/**"
+      - "infra/policy/**"
       - ".github/workflows/terraform.yml"
 
 permissions:
@@ -27,9 +27,9 @@ jobs:
     strategy:
       matrix:
         module:
-          - terraform/modules/naming
-          - terraform/modules/resource-group
-          - terraform/examples/naming-check
+          - infra/terraform/modules/naming
+          - infra/terraform/modules/resource-group
+          - infra/terraform/examples/naming-check
     steps:
       - uses: actions/checkout@v4
 
@@ -63,15 +63,15 @@ jobs:
           terraform_wrapper: false
 
       - name: terraform init
-        working-directory: terraform/examples/naming-check
+        working-directory: infra/terraform/examples/naming-check
         run: terraform init -backend=false
 
       - name: terraform plan
-        working-directory: terraform/examples/naming-check
+        working-directory: infra/terraform/examples/naming-check
         run: terraform plan -out=tfplan.binary
 
       - name: terraform show -json
-        working-directory: terraform/examples/naming-check
+        working-directory: infra/terraform/examples/naming-check
         run: terraform show -json tfplan.binary > plan.json
 
       - name: install conftest
@@ -82,4 +82,4 @@ jobs:
           sudo mv conftest /usr/local/bin/
 
       - name: conftest test (naming convention)
-        run: conftest test --policy policy terraform/examples/naming-check/plan.json
+        run: conftest test --policy infra/policy infra/terraform/examples/naming-check/plan.json

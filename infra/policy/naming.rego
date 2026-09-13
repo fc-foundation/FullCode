@@ -14,9 +14,9 @@ resource_types := {
 	"key_vault": {"abbr": "kv", "scheme": "compact"},
 }
 
-standard_pattern(abbr) := sprintf("^%s-fc-(dev|test|prod)-(eus2)-[0-9]{3}$", [abbr])
+standard_pattern(abbr) := sprintf("^%s-fc-(dev|test|prod)-(eus|eus2|cus|ncus|scus|wcus|wus|wus2|wus3)-[0-9]{3}$", [abbr])
 
-compact_pattern(abbr) := sprintf("^%sfc(dev|test|prod)(eus2)[0-9]{3}$", [abbr])
+compact_pattern(abbr) := sprintf("^%sfc(dev|test|prod)(eus|eus2|cus|ncus|scus|wcus|wus|wus2|wus3)[0-9]{3}$", [abbr])
 
 name_matches(info, name) {
 	info.scheme == "standard"

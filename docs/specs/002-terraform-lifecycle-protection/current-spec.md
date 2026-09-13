@@ -21,7 +21,7 @@ Terraform resource modules (starting with `infra/terraform/modules/resource-grou
 
 1. Every `resource` block that manages a real Azure resource in `infra/terraform/modules/*` includes a `lifecycle { prevent_destroy = true }` block.
 2. `infra/terraform/modules/resource-group/main.tf`'s `azurerm_resource_group.this` gets this protection now.
-3. The pattern is documented (in the module itself, via a short comment, and referenced from `docs/specs/infrastructure-naming.md`) so every future resource module includes it from creation rather than as an afterthought.
+3. The pattern is documented (in the module itself, via a short comment, and referenced from the `infrastructure-naming` spec) so every future resource module includes it from creation rather than as an afterthought.
 4. As a direct consequence of `prevent_destroy` blocking replacement: once a resource is deployed, changing any of its naming-module inputs (`environment`, `region`, `instance`, `workload`) will cause `terraform plan`/`apply` to error rather than silently destroying and recreating the resource. This is the intended behavior, not a defect — such inputs are effectively immutable post-deployment unless someone deliberately removes the lifecycle block first.
 
 ## Open questions

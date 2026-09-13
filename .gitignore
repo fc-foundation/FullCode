@@ -76,3 +76,6 @@ plan.json
 
 # Downloaded tooling (e.g. conftest, fetched by scripts/Test-NamingConvention.ps1)
 .tools/
+
+# Local-only files never meant to be committed (secrets, PATs, etc.)
+.local/

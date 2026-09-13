@@ -14,8 +14,17 @@ locals {
     key_vault              = { abbr = "kv", scheme = "compact", max_length = 24 }
   }
 
+  # Azure public-cloud US regions.
   region_abbreviations = {
-    eastus2 = "eus2"
+    eastus         = "eus"
+    eastus2        = "eus2"
+    centralus      = "cus"
+    northcentralus = "ncus"
+    southcentralus = "scus"
+    westcentralus  = "wcus"
+    westus         = "wus"
+    westus2        = "wus2"
+    westus3        = "wus3"
   }
 
   resource_type_valid = contains(keys(local.resource_types), var.resource_type)

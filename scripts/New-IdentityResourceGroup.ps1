@@ -35,6 +35,13 @@
     credential is named "<GithubFederationName>-<Environment>". Required.
 .PARAMETER Repository
     GitHub "owner/repo" the federated credential trusts. Required.
+.PARAMETER RepositoryOwnerId
+    Numeric GitHub ID of the repository owner (`gh api repos/<owner>/<repo>
+    --jq .owner.id`). The repo uses GitHub's immutable OIDC subject
+    (use_immutable_subject), whose subject embeds owner and repo IDs. Required.
+.PARAMETER RepositoryId
+    Numeric GitHub ID of the repository (`gh api repos/<owner>/<repo>
+    --jq .id`). Required.
 .PARAMETER OutputPath
     Path to also write the result as JSON, for feeding into
     `gh secret set` / `gh variable set` afterwards. Required.
@@ -67,6 +74,14 @@ param(
 
     [Parameter(Mandatory = $true)]
     [string]$Repository,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[0-9]+$')]
+    [string]$RepositoryOwnerId,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[0-9]+$')]
+    [string]$RepositoryId,
 
     [Parameter(Mandatory = $true)]
     [string]$OutputPath
@@ -110,7 +125,12 @@ $identityName = "id-$Workload-$Environment-$regionAbbr-$IdentityInstance"
 $federatedCredentialName = "$GithubFederationName-$Environment"
 $issuer = "https://token.actions.githubusercontent.com"
 $audience = "api://AzureADTokenExchange"
-$subject = "repo:${Repository}:environment:${Environment}"
+# The repo's OIDC setting has use_immutable_subject enabled, so GitHub
+# presents "repo:<owner>@<ownerId>/<repo>@<repoId>:environment:<env>" rather
+# than the name-only "repo:<owner>/<repo>:..." form. The IDs make the trust
+# immune to the repo or org being renamed or its name re-registered.
+$repositoryOwner, $repositoryName = $Repository.Split('/', 2)
+$subject = "repo:${repositoryOwner}@${RepositoryOwnerId}/${repositoryName}@${RepositoryId}:environment:${Environment}"
 
 $context = Get-AzContext
 if (-not $context) {

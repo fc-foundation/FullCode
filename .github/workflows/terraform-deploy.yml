@@ -1,0 +1,116 @@
+name: Terraform Deploy
+
+# Plans (on PRs) and plans + applies (on manual dispatch) an environment root
+# under infra/terraform/environments/<env>, authenticating to Azure with the
+# environment's federated managed identity (docs/specs/003-identity-resource-group)
+# via GitHub OIDC — no client secret. See docs/specs/004-terraform.
+#
+# Required GitHub Environment variables (Settings > Environments > <env>):
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#   TFSTATE_RESOURCE_GROUP, TFSTATE_STORAGE_ACCOUNT, TFSTATE_CONTAINER
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/environments/**"
+      - "infra/terraform/modules/**"
+      - "infra/policy/**"
+      - ".github/workflows/terraform-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to plan and apply"
+        type: choice
+        options:
+          - dev
+        default: dev
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: "1.9.8"
+  CONFTEST_VERSION: "0.55.0"
+
+jobs:
+  plan-apply:
+    name: ${{ github.event_name == 'workflow_dispatch' && 'plan & apply' || 'plan' }} (${{ inputs.environment || 'dev' }})
+    runs-on: ubuntu-latest
+    # The federated credential's subject is "environment:<env>", so the job
+    # must run in that GitHub Environment for the OIDC token to be accepted.
+    environment: ${{ inputs.environment || 'dev' }}
+    # Skip PRs from forks: they can't get an OIDC token for this repo's
+    # environments anyway.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    # One plan/apply at a time per environment's state.
+    concurrency:
+      group: terraform-deploy-${{ inputs.environment || 'dev' }}
+      cancel-in-progress: false
+    env:
+      TF_ENV: ${{ inputs.environment || 'dev' }}
+      TF_IN_AUTOMATION: "true"
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    defaults:
+      run:
+        working-directory: infra/terraform/environments/${{ inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: terraform init
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=${{ vars.TFSTATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.TFSTATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ vars.TFSTATE_CONTAINER }}" \
+            -backend-config="key=${TF_ENV}.tfstate"
+
+      - name: terraform validate
+        run: terraform validate
+
+      # A plan that would destroy or replace a resource with
+      # lifecycle.prevent_destroy (docs/specs/002-terraform-lifecycle-protection)
+      # fails here, before anything can be applied.
+      - name: terraform plan
+        run: terraform plan -input=false -out=tfplan.binary
+
+      - name: plan summary
+        run: |
+          {
+            echo "### Terraform plan — \`${TF_ENV}\`"
+            echo '```'
+            terraform show -no-color tfplan.binary
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: terraform show -json
+        run: terraform show -json tfplan.binary > plan.json
+
+      - name: install conftest
+        working-directory: ${{ github.workspace }}
+        run: |
+          curl -sSL -o conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          tar xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin/
+
+      - name: conftest test (naming convention)
+        working-directory: ${{ github.workspace }}
+        run: conftest test --policy infra/policy "infra/terraform/environments/${TF_ENV}/plan.json"
+
+      # Applies exactly the plan reviewed above in this same run. Manual
+      # dispatch only — PRs never apply.
+      - name: terraform apply
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform apply -input=false tfplan.binary
